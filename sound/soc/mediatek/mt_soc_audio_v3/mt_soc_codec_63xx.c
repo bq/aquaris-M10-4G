@@ -2810,8 +2810,8 @@ void SetMicPGAGain(void)
 static bool GetAdcStatus(void)
 {
 	int i = 0;
-
-	for (i = AUDIO_ANALOG_DEVICE_IN_ADC1; i < AUDIO_ANALOG_DEVICE_MAX; i++) {
+	//fix for record issue (bug 0059482) xmysx 20161116
+	for (i = AUDIO_ANALOG_DEVICE_IN_ADC1; i <= AUDIO_ANALOG_DEVICE_RECEIVER_SPEAKER_SWITCH; i++) {
 		if ((mCodec_data->mAudio_Ana_DevicePower[i] == true)
 		    && (i != AUDIO_ANALOG_DEVICE_RECEIVER_SPEAKER_SWITCH)) {
 			return true;

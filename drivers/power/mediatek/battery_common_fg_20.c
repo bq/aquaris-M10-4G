@@ -76,7 +76,14 @@
 #include <mach/mt_charging.h>
 #include <mach/mt_pmic.h>
 
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--start
+#ifdef CONFIG_AW2015
+extern unsigned char AW2015_LED_OFF(void);
+extern unsigned char AW2015_LED_RED_ON(void);
+extern unsigned char AW2015_LED_RED_OFF(void);
 
+#endif
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--end
 
 #if defined(CONFIG_MTK_DUAL_INPUT_CHARGER_SUPPORT)
 #include <mach/diso.h>
@@ -378,6 +385,13 @@ kal_bool bat_is_ext_power(void)
 	return pwr_src;
 }
 #endif
+
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--start
+#ifdef CONFIG_AW2015
+static int LED_ON_COUNT = 1;
+#endif
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--end
+
 /* ///////////////////////////////////////////////////////////////////////////////////////// */
 /* // PMIC PCHR Related APIs */
 /* ///////////////////////////////////////////////////////////////////////////////////////// */
@@ -415,6 +429,17 @@ kal_bool upmu_is_chr_det(void)
 
 		return KAL_TRUE;
 	}
+
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--start
+#ifdef CONFIG_AW2015
+    if(LED_ON_COUNT)
+    {
+        //pr_err("xmwuwh close LED\n");
+        AW2015_LED_OFF();
+        LED_ON_COUNT--;
+    }
+#endif
+// Disable LED when DTU boot and pulg OTG by xmwuwh@20161118--end
 
 	battery_log(BAT_LOG_CRTI, "[upmu_is_chr_det] Charger exist but USB is host\n");
 
@@ -2677,7 +2702,12 @@ void do_chrdet_int_task(void)
 #endif
 			battery_log(BAT_LOG_CRTI, "[do_chrdet_int_task] charger exist!\n");
 			BMT_status.charger_exist = KAL_TRUE;
-
+            #ifdef CONFIG_AW2015
+                if (BMT_status.UI_SOC2 <= 90)
+                {
+                    AW2015_LED_RED_ON();
+                }
+            #endif
 			wake_lock(&battery_suspend_lock);
 
 #if defined(CONFIG_POWER_EXT)
@@ -2695,6 +2725,12 @@ void do_chrdet_int_task(void)
 		} else {
 			battery_log(BAT_LOG_CRTI, "[do_chrdet_int_task] charger NOT exist!\n");
 			BMT_status.charger_exist = KAL_FALSE;
+        #ifdef CONFIG_AW2015
+                if (BMT_status.UI_SOC2 <= 90)
+                {
+                    AW2015_LED_RED_OFF();
+                }
+        #endif
 
 #if defined(CONFIG_MTK_DUAL_INPUT_CHARGER_SUPPORT)
 			battery_log(BAT_LOG_CRTI,

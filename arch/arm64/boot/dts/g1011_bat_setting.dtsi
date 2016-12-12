@@ -69,7 +69,7 @@
 	ocv_board_compesate = <0>;
 	r_fg_board_base = <1000>;
 	r_fg_board_slope = <1000>;
-	car_tune_value = <100>;
+	car_tune_value = <92>;
 	system_off_voltage = <3450>;	/* Unit: mV */
 
 	/* HW Fuel gague  */
@@ -87,7 +87,7 @@
 	difference_voltage_update = <20>;
 	aging1_load_soc = <70>;
 	aging1_update_soc = <30>;
-	batterypseudo100 = <95>;
+	batterypseudo100 = <98>;
 	batterypseudo1 = <4>;
 
 	q_max_by_sys = <1>; /*Qmax varient by system drop voltage */

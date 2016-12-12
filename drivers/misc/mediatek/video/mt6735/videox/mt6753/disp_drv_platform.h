@@ -56,10 +56,12 @@
  */
 /* #define OVL_MULTIPASS_SUPPORT */
 
+#if 0  // xmsxm remove @ 2016-11-22, to fix Mantis #0059798.
 /**
  * Enable Ovl time-sharing.
  */
 #define OVL_TIME_SHARING
+#endif
 
 /**
  * Build CMDQ command in trigger stage.

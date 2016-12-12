@@ -191,7 +191,9 @@ static struct usb_device_descriptor device_desc = {
 	.bDeviceClass         = USB_CLASS_PER_INTERFACE,
 	.idVendor             = __constant_cpu_to_le16(VENDOR_ID),
 	.idProduct            = __constant_cpu_to_le16(PRODUCT_ID),
-	.bcdDevice            = __constant_cpu_to_le16(0xffff),
+	/* initialize the value for REV/bcdDevice, modify by xmtjx*/
+//	.bcdDevice			  = __constant_cpu_to_le16(0xffff),
+	.bcdDevice			  = __constant_cpu_to_le16(0x0200),
 	.bNumConfigurations   = 1,
 };
 
