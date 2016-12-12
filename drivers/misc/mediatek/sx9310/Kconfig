@@ -1,0 +1,4 @@
+config MTK_SX9310
+        bool "SX9310 for MediaTek package"
+        default n
+

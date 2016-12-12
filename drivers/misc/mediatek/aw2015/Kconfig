@@ -1,0 +1,5 @@
+config AW2015
+	bool "AW2015"
+	default n
+	help
+	  Is Tablet Project or not

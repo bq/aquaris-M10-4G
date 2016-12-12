@@ -1,0 +1,1 @@
+obj-$(CONFIG_AW2015) += AW2015_LED_M.o
