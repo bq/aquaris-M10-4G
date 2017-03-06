@@ -76,6 +76,11 @@
 /* extern struct semaphore dal_sem; */
 /* extern int isAEEEnabled; */
 #define DISP_DISABLE_X_CHANNEL_ALPHA
+/*Change by xmwuwh@20170120 for mantis 0058685 */
+extern bool is_hdmi_active(void);
+extern int primary_display_wait_for_vsync(void *config);
+extern int ext_disp_wait_for_vsync(void *config, unsigned int session);
+/*Change by xmwuwh@20170120 for mantis 0058685 */
 
 /* TODO: revise this later @xuecheng */
 #include "mtkfb_fence.h"
@@ -1806,7 +1811,8 @@ int _ioctl_wait_vsync(unsigned long arg)
 	if (session_info)
 		dprec_start(&session_info->event_waitvsync, 0, 0);
 
-#ifdef CONFIG_SINGLE_PANEL_OUTPUT
+/*Change by xmwuwh@20170120 for mantis 0058685 */
+#if  1 //def CONFIG_SINGLE_PANEL_OUTPUT
 	if (primary_display_is_sleepd() && is_hdmi_active()) {
 			ret = ext_disp_wait_for_vsync(&vsync_config, vsync_config.session_id);
 			if (ret <= 0)

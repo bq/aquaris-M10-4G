@@ -41,7 +41,7 @@
 int ext_disp_use_cmdq;
 int ext_disp_use_m4u;
 enum EXT_DISP_PATH_MODE ext_disp_mode;
-
+extern bool is_hdmi_active(void);/*Change by xmwuwh@20170120 for mantis 0058685 */
 static int is_context_inited;
 static int init_roi;
 
@@ -1058,7 +1058,8 @@ int ext_disp_config_input_multiple(disp_session_input_config *input, int idx, un
 
 	disp_ddp_path_config *data_config;
 
-	if (pgc->state != EXTD_INIT && pgc->state != EXTD_RESUME && pgc->suspend_config != 1) {
+    /*Change by xmwuwh@20170120 for mantis 0058685 */
+	if (pgc->state != EXTD_INIT && pgc->state != EXTD_RESUME && pgc->suspend_config != 1 && !is_hdmi_active()) {
 		EXT_DISP_LOG("config ext disp is already slept, state:%d\n", pgc->state);
 		MMProfileLogEx(ddp_mmp_get_events()->Extd_ErrorInfo, MMProfileFlagPulse, Config, idx);
 		return -2;

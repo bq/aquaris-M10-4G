@@ -927,6 +927,8 @@ static void vPlugDetectService(HDMI_CTRL_STATE_T e_state)
 
 void hdmi_timer_impl(void)
 {
+    
+    msleep(500);/*Change by xmwuwh@20170120 for mantis 0058685 */
 	if (mt8193_hdmiinit == 0) {
 		mt8193_hdmiinit = 1;
 		/* mt8193_power_off(); */

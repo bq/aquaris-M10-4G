@@ -62,6 +62,13 @@ static ssize_t AW2015_Set_Yellow_delay_on(struct device* cd, struct device_attri
 static ssize_t AW2015_Set_Pink(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
 static ssize_t AW2015_Set_Pink_delay_off(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
 static ssize_t AW2015_Set_Pink_delay_on(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Orange(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Orange_delay_off(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Orange_delay_on(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Violet(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Violet_delay_off(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+static ssize_t AW2015_Set_Violet_delay_on(struct device* cd, struct device_attribute *attr,const char* buf, size_t len);
+
 
 
 
@@ -75,6 +82,8 @@ static DEVICE_ATTR(White, 0660, NULL,  AW2015_Set_White);
 static DEVICE_ATTR(Gray, 0660, NULL,  AW2015_Set_Gray);
 static DEVICE_ATTR(Yellow, 0660, NULL,  AW2015_Set_Yellow);
 static DEVICE_ATTR(Pink, 0660, NULL,  AW2015_Set_Pink);
+static DEVICE_ATTR(Orange, 0660, NULL,  AW2015_Set_Orange);
+static DEVICE_ATTR(Violet, 0660, NULL,  AW2015_Set_Violet);
 
 
 static int RED_DELAY_OFF = 0,RED_DELAY_ON = 0;
@@ -103,6 +112,13 @@ static int PINK_DELAY_OFF = 0,PINK_DELAY_ON = 0;
 static DEVICE_ATTR(Pink_delay_off, 0660, NULL,  AW2015_Set_Pink_delay_off);
 static DEVICE_ATTR(Pink_delay_on, 0660, NULL,  AW2015_Set_Pink_delay_on);
 
+static int ORANGE_DELAY_OFF = 0,ORANGE_DELAY_ON = 0;
+static DEVICE_ATTR(Orange_delay_off, 0660, NULL,  AW2015_Set_Orange_delay_off);
+static DEVICE_ATTR(Orange_delay_on, 0660, NULL,  AW2015_Set_Orange_delay_on);
+
+static int VIOLET_DELAY_OFF = 0,VIOLET_DELAY_ON = 0;
+static DEVICE_ATTR(Violet_delay_off, 0660, NULL,  AW2015_Set_Violet_delay_off);
+static DEVICE_ATTR(Violet_delay_on, 0660, NULL,  AW2015_Set_Violet_delay_on);
 
 struct i2c_client *AW2015_i2c_client;
 
@@ -407,6 +423,378 @@ static ssize_t AW2015_Set_Pink_delay_on(struct device* cd, struct device_attribu
     return len;
 }
 
+static ssize_t AW2015_Set_Orange_delay_off(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+{
+    unsigned long iNewPsSensorState = simple_strtoul(buf, NULL, 10);
+    ORANGE_DELAY_OFF = iNewPsSensorState;
+    return len;
+}
+
+static ssize_t AW2015_Set_Orange_delay_on(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+{
+    unsigned long iNewPsSensorState = simple_strtoul(buf, NULL, 10);
+    ORANGE_DELAY_ON = iNewPsSensorState;
+    return len;
+}
+
+static ssize_t AW2015_Set_Violet_delay_off(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+{
+    unsigned long iNewPsSensorState = simple_strtoul(buf, NULL, 10);
+    VIOLET_DELAY_OFF = iNewPsSensorState;
+    return len;
+}
+
+static ssize_t AW2015_Set_Violet_delay_on(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+{
+    unsigned long iNewPsSensorState = simple_strtoul(buf, NULL, 10);
+    VIOLET_DELAY_ON = iNewPsSensorState;
+    return len;
+}
+
+
+static ssize_t AW2015_Set_Orange(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+
+{
+    unsigned int databuf[16];
+	sscanf(buf,"%d",&databuf[0]);
+    I2C_write_reg(0x00, 0x55);		// software reset
+
+	I2C_write_reg(0x01, 0x03);		// GCR
+	I2C_write_reg(0x03, 0x01);		// IMAX
+	I2C_write_reg(0x04, 0x00);		// LCFG1
+	I2C_write_reg(0x05, 0x00);		// LCFG2
+	I2C_write_reg(0x06, 0x00);		// LCFG3
+	I2C_write_reg(0x07, 0x07);		// LEDEN
+
+    if(databuf[0]!=0)
+    {
+        if(ORANGE_DELAY_OFF == 500)
+        {
+            if(ORANGE_DELAY_ON == 500)
+            {
+                I2C_write_reg(0x00, 0x55);		// software reset
+
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xFF);      // Color1_R
+                I2C_write_reg(0x11, 0xCE);      // Color1_G
+                I2C_write_reg(0x12, 0x1F);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+            }
+            else if(ORANGE_DELAY_ON == 1000)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+                
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xFF);      // Color1_R
+                I2C_write_reg(0x11, 0xCE);      // Color1_G
+                I2C_write_reg(0x12, 0x1F);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x13);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x01);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x20);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+            }
+            else if(ORANGE_DELAY_ON == 1499)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+                
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xFF);      // Color1_R
+                I2C_write_reg(0x11, 0xCE);      // Color1_G
+                I2C_write_reg(0x12, 0x1F);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x80);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x00);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN
+            }
+        }   else if(ORANGE_DELAY_ON!=0 &&ORANGE_DELAY_OFF!=0)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xFF);      // Color1_R
+                I2C_write_reg(0x11, 0xCE);      // Color1_G
+                I2C_write_reg(0x12, 0x1F);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x14);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x01);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x31);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+        }
+        else
+        {
+            I2C_write_reg(0x00, 0x55);      // software reset
+            
+            I2C_write_reg(0x01, 0x03);      // GCR
+            I2C_write_reg(0x03, 0x01);      // IMAX
+            I2C_write_reg(0x04, 0x00);      // LCFG1
+            I2C_write_reg(0x05, 0x00);      // LCFG2
+            I2C_write_reg(0x06, 0x00);      // LCFG3
+            I2C_write_reg(0x07, 0x07);      // LEDEN
+
+            I2C_write_reg(0x10, 0xFF);		// Color1_R
+            I2C_write_reg(0x11, 0xCE);		// Color1_G
+            I2C_write_reg(0x12, 0x1F);		// Color1_B
+            I2C_write_reg(0x1C, 0xFF);		// PWM1
+            I2C_write_reg(0x1D, 0xFF);		// PWM2
+            I2C_write_reg(0x1E, 0xFF);		// PWM3
+            I2C_write_reg(0x09, 0x07);		// PAT_RIN
+        }
+        
+    }
+    else
+    {
+        I2C_write_reg(0x10, 0x00);		// Color1_R
+        I2C_write_reg(0x11, 0x00);		// Color1_G
+        I2C_write_reg(0x12, 0x00);		// Color1_B
+        I2C_write_reg(0x1C, 0x00);		// PWM1
+        I2C_write_reg(0x1D, 0x00);		// PWM2
+        I2C_write_reg(0x1E, 0x00);		// PWM3
+        I2C_write_reg(0x09, 0x07);		// PAT_RIN
+        ORANGE_DELAY_ON = 0;
+        ORANGE_DELAY_OFF = 0;
+    }
+	return len;
+
+}
+
+
+static ssize_t AW2015_Set_Violet(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
+
+{
+    unsigned int databuf[16];
+	sscanf(buf,"%d",&databuf[0]);
+    I2C_write_reg(0x00, 0x55);		// software reset
+
+	I2C_write_reg(0x01, 0x03);		// GCR
+	I2C_write_reg(0x03, 0x01);		// IMAX
+	I2C_write_reg(0x04, 0x00);		// LCFG1
+	I2C_write_reg(0x05, 0x00);		// LCFG2
+	I2C_write_reg(0x06, 0x00);		// LCFG3
+	I2C_write_reg(0x07, 0x07);		// LEDEN
+
+    if(databuf[0]!=0)
+    {
+        if(VIOLET_DELAY_OFF == 500)
+        {
+            if(VIOLET_DELAY_ON == 500)
+            {
+                I2C_write_reg(0x00, 0x55);		// software reset
+
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xD2);      // Color1_R
+                I2C_write_reg(0x11, 0x74);      // Color1_G
+                I2C_write_reg(0x12, 0xF9);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+            }
+            else if(VIOLET_DELAY_ON == 1000)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+                
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xD2);      // Color1_R
+                I2C_write_reg(0x11, 0x74);      // Color1_G
+                I2C_write_reg(0x12, 0xF9);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x13);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x01);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x20);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+            }
+            else if(VIOLET_DELAY_ON == 1499)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+                
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xD2);      // Color1_R
+                I2C_write_reg(0x11, 0x74);      // Color1_G
+                I2C_write_reg(0x12, 0xF9);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x80);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x00);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN
+            }
+        }   else if(VIOLET_DELAY_ON!=0 &&VIOLET_DELAY_OFF!=0)
+            {
+                I2C_write_reg(0x00, 0x55);      // software reset
+
+                I2C_write_reg(0x01, 0x03);      // GCR
+                I2C_write_reg(0x03, 0x01);      // IMAX
+                I2C_write_reg(0x04, 0x01);      // LCFG1
+                I2C_write_reg(0x05, 0x01);      // LCFG2
+                I2C_write_reg(0x06, 0x01);      // LCFG3
+                I2C_write_reg(0x07, 0x07);      // LEDEN
+                I2C_write_reg(0x08, 0x08);      // LEDCTR
+
+                I2C_write_reg(0x10, 0xD2);      // Color1_R
+                I2C_write_reg(0x11, 0x74);      // Color1_G
+                I2C_write_reg(0x12, 0xF9);      // Color1_B
+                I2C_write_reg(0x1C, 0xFF);      // PWM1
+                I2C_write_reg(0x1D, 0xFF);      // PWM2
+                I2C_write_reg(0x1E, 0xFF);      // PWM3
+                I2C_write_reg(0x09, 0x07);      // PAT_RIN
+
+                I2C_write_reg(0x30, 0x14);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x01);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x31);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
+                I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
+
+
+                I2C_write_reg(0x09, 0x07);		// PAT_RIN	
+        }
+        else
+        {
+            I2C_write_reg(0x00, 0x55);      // software reset
+            
+            I2C_write_reg(0x01, 0x03);      // GCR
+            I2C_write_reg(0x03, 0x01);      // IMAX
+            I2C_write_reg(0x04, 0x00);      // LCFG1
+            I2C_write_reg(0x05, 0x00);      // LCFG2
+            I2C_write_reg(0x06, 0x00);      // LCFG3
+            I2C_write_reg(0x07, 0x07);      // LEDEN
+
+            I2C_write_reg(0x10, 0xD2);		// Color1_R
+            I2C_write_reg(0x11, 0x74);		// Color1_G
+            I2C_write_reg(0x12, 0xF9);		// Color1_B
+            I2C_write_reg(0x1C, 0xFF);		// PWM1
+            I2C_write_reg(0x1D, 0xFF);		// PWM2
+            I2C_write_reg(0x1E, 0xFF);		// PWM3
+            I2C_write_reg(0x09, 0x07);		// PAT_RIN
+        }
+        
+    }
+    else
+    {
+        I2C_write_reg(0x10, 0x00);		// Color1_R
+        I2C_write_reg(0x11, 0x00);		// Color1_G
+        I2C_write_reg(0x12, 0x00);		// Color1_B
+        I2C_write_reg(0x1C, 0x00);		// PWM1
+        I2C_write_reg(0x1D, 0x00);		// PWM2
+        I2C_write_reg(0x1E, 0x00);		// PWM3
+        I2C_write_reg(0x09, 0x07);		// PAT_RIN
+        VIOLET_DELAY_ON = 0;
+        VIOLET_DELAY_OFF = 0;
+    }
+	return len;
+
+}
+
 static ssize_t AW2015_Set_White(struct device* cd, struct device_attribute *attr, const char* buf, size_t len)
 
 {
@@ -446,7 +834,7 @@ static ssize_t AW2015_Set_White(struct device* cd, struct device_attribute *attr
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -617,7 +1005,7 @@ static ssize_t AW2015_Set_Gray(struct device* cd, struct device_attribute *attr,
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -787,7 +1175,7 @@ static ssize_t AW2015_Set_Yellow(struct device* cd, struct device_attribute *att
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -957,7 +1345,7 @@ static ssize_t AW2015_Set_Pink(struct device* cd, struct device_attribute *attr,
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -1118,7 +1506,7 @@ static ssize_t AW2015_Set_Red(struct device* cd, struct device_attribute *attr, 
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
                 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -1201,9 +1589,9 @@ static ssize_t AW2015_Set_Red(struct device* cd, struct device_attribute *attr, 
                 I2C_write_reg(0x1E, 0x00);      // PWM3
                 I2C_write_reg(0x09, 0x07);      // PAT_RIN
 
-                I2C_write_reg(0x30, 0x80);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
-                I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
+                I2C_write_reg(0x30, 0x14);		// PAT_T1		Trise & Ton
+                I2C_write_reg(0x31, 0x01);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x32, 0x31);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x00);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
 
@@ -1291,7 +1679,7 @@ static ssize_t AW2015_Set_Green(struct device* cd, struct device_attribute *attr
                 I2C_write_reg(0x1E, 0xFF);      // PWM3
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -1493,7 +1881,7 @@ static ssize_t AW2015_Set_Blue(struct device* cd, struct device_attribute *attr,
                 I2C_write_reg(0x1E, 0xFF);      // PWM3
 
                 I2C_write_reg(0x30, 0x00);		// PAT_T1		Trise & Ton
-                I2C_write_reg(0x31, 0x00);		// PAT_T2		Tfall & Toff
+                I2C_write_reg(0x31, 0x02);		// PAT_T2		Tfall & Toff
                 I2C_write_reg(0x32, 0x00);		// PAT_T3		Tslot & Tdelay
                 I2C_write_reg(0x33, 0x10);		// PAT_T4 	  PAT_CTR & Color
                 I2C_write_reg(0x34, 0x00);		// PAT_T5		    Timer
@@ -1842,6 +2230,12 @@ static int AW2015_create_sysfs(struct i2c_client *client)
     err = device_create_file(dev, &dev_attr_Pink);
     err = device_create_file(dev, &dev_attr_Pink_delay_off);
     err = device_create_file(dev, &dev_attr_Pink_delay_on);
+    err = device_create_file(dev, &dev_attr_Orange);
+    err = device_create_file(dev, &dev_attr_Orange_delay_off);
+    err = device_create_file(dev, &dev_attr_Orange_delay_on);
+    err = device_create_file(dev, &dev_attr_Violet);
+    err = device_create_file(dev, &dev_attr_Violet_delay_off);
+    err = device_create_file(dev, &dev_attr_Violet_delay_on);
 
 	return err;
 }
