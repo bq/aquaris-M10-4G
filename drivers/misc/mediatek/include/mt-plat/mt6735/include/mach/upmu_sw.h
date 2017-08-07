@@ -3,6 +3,7 @@
 
 #define AUXADC_SUPPORT_IMM_CURRENT_MODE
 #define BATTERY_DTS_SUPPORT
+#define INIT_BAT_CUR_FROM_PTIM
 
 #define BATTERY_CDP_WORKAROUND
 
@@ -172,6 +173,7 @@ extern void register_dlpt_notify(void (*dlpt_callback)(unsigned int), DLPT_PRIO 
 
 
 
+extern int do_ptim_ex(bool isSuspend, unsigned int *bat, signed int *cur);
 
 
 #endif				/* _MT_PMIC_UPMU_SW_H_ */

@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 MediaTek Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 
 #include <linux/delay.h>
 #include <asm/div64.h>
@@ -8,6 +21,7 @@
 #include <mach/mt_battery_meter.h>
 #include <mach/mt_pmic.h>
 #include <mt-plat/battery_meter.h>
+#include <mt-plat/mt_boot_reason.h>
 
 
 /* ============================================================ // */
@@ -925,6 +939,29 @@ static signed int read_hw_ocv(void *data)
 	return STATUS_OK;
 }
 
+static signed int read_is_hw_ocv_ready(void *data)
+{
+#if defined(CONFIG_POWER_EXT)
+	*(signed int *) (data) = 0;
+#else
+#if defined(SWCHR_POWER_PATH)
+	*(signed int *) (data) = pmic_get_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_SWCHR);
+	bm_err("[read_is_hw_ocv_ready] is_hw_ocv_ready(SWCHR) %d\n", *(signed int *) (data));
+	pmic_set_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_CLR, 1);
+	mdelay(1);
+	pmic_set_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_CLR, 0);
+#else
+	*(signed int *) (data) = pmic_get_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_PCHR);
+	bm_err("[read_is_hw_ocv_ready] is_hw_ocv_ready(PCHR) %d\n", *(signed int *) (data));
+	pmic_set_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_CLR, 1);
+	mdelay(1);
+	pmic_set_register_value(PMIC_AUXADC_ADC_RDY_WAKEUP_CLR, 0);
+#endif
+#endif
+
+	return STATUS_OK;
+}
+
 static signed int dump_register_fgadc(void *data)
 {
 	return STATUS_OK;
@@ -960,6 +997,7 @@ signed int bm_ctrl_cmd(BATTERY_METER_CTRL_CMD cmd, void *data)
 		bm_func[BATTERY_METER_CMD_SET_COLUMB_INTERRUPT] = fgauge_set_columb_interrupt;
 		bm_func[BATTERY_METER_CMD_GET_BATTERY_PLUG_STATUS] = read_battery_plug_out_status;
 		bm_func[BATTERY_METER_CMD_GET_HW_FG_CAR_ACT] = fgauge_read_columb_accurate;
+		bm_func[BATTERY_METER_CMD_GET_IS_HW_OCV_READY] = read_is_hw_ocv_ready;
 	}
 
 	if (cmd < BATTERY_METER_CMD_NUMBER) {
@@ -969,4 +1007,35 @@ signed int bm_ctrl_cmd(BATTERY_METER_CTRL_CMD cmd, void *data)
 		return STATUS_UNSUPPORTED;
 
 	return status;
+}
+
+signed int pmic_is_battery_plugout(void)
+{
+	int is_battery_plugout;
+	int pmic_strup_pwroff_seq_en = pmic_get_register_value(PMIC_STRUP_PWROFF_SEQ_EN);
+	int uvlo_rstb_status = pmic_get_register_value(PMIC_UVLO_RSTB_STATUS);
+	int is_long_press = (get_boot_reason() == BR_POWER_KEY ? 1 : 0);
+	int is_wdt_reboot = pmic_get_register_value(PMIC_WDTRSTB_STATUS);
+
+	pmic_set_register_value(PMIC_UVLO_RSTB_STATUS, 1);
+
+	if (pmic_strup_pwroff_seq_en) {
+		if (uvlo_rstb_status)
+			is_battery_plugout = 0;
+		else {
+			if (is_long_press)
+				is_battery_plugout = 0;
+			else {
+				if (is_wdt_reboot)
+					is_battery_plugout = 0;
+				else
+					is_battery_plugout = 1;
+			}
+		}
+	} else
+		is_battery_plugout = 1;
+
+	bm_err("[pmic_is_battery_plugout] [%d] %d, %d, %d, %d\n",
+		is_battery_plugout, pmic_strup_pwroff_seq_en, uvlo_rstb_status, is_long_press, is_wdt_reboot);
+	return is_battery_plugout;
 }

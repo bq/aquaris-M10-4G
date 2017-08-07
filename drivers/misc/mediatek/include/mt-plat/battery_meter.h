@@ -142,6 +142,8 @@ struct battery_meter_custom_data {
 struct battery_meter_custom_data {
 
 	/* cust_battery_meter.h */
+	int cust_data_size;
+	int daemon_cmd_num;
 	int soc_flow;
 
 	int hw_fg_force_use_sw_ocv;
@@ -191,6 +193,8 @@ struct battery_meter_custom_data {
 	int difference_hwocv_rtc;
 	int difference_hwocv_swocv;
 	int difference_swocv_rtc;
+	int difference_vbat_rtc;
+	int difference_swocv_rtc_pos;
 	int max_swocv;
 
 	int max_hwocv;
@@ -226,9 +230,14 @@ struct battery_meter_custom_data {
 
 	int min_charging_smooth_time;
 
+	int embedded_battery;
+
 	/* SW Fuel gauge */
 	int apsleep_battery_voltage_compensate;
-
+	int max_smooth_time;
+	int smooth_uisoc2;
+	int trk_point_en;
+	int trk_point_thr;
 
 };
 
@@ -299,6 +308,7 @@ typedef enum {
 	FG_DAEMON_CMD_GET_SUSPEND_TIME,
 	FG_DAEMON_CMD_GET_SUSPEND_CAR,
 	FG_DAEMON_CMD_IS_HW_OCV_UPDATE,
+	FG_DAEMON_CMD_PRINT_LOG,
 
 	FG_DAEMON_CMD_FROM_USER_NUMBER
 } FG_DAEMON_CTRL_CMD_FROM_USER;
@@ -384,9 +394,12 @@ extern void fgauge_algo_run_get_init_data(void);
 extern void battery_meter_set_init_flag(kal_bool flag);
 extern void battery_meter_reset_sleep_time(void);
 extern int battery_meter_get_low_battery_interrupt_status(void);
+extern void mt_battery_set_init_vol(int);
 
 #if defined(CONFIG_MTK_HAFG_20)
 unsigned int get_cv_voltage(void);
 #endif
+
+extern void battery_meter_set_fg_int(void);
 
 #endif /* #ifndef _BATTERY_METER_H */

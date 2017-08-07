@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 MediaTek Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 #ifndef _CUST_BATTERY_METER_H
 #define _CUST_BATTERY_METER_H
 
@@ -83,6 +96,8 @@
 #define DIFFERENCE_HWOCV_RTC		30
 #define DIFFERENCE_HWOCV_SWOCV		10
 #define DIFFERENCE_SWOCV_RTC		10
+#define DIFFERENCE_VBAT_RTC 30
+#define DIFFERENCE_SWOCV_RTC_POS 15
 #define MAX_SWOCV			3
 
 #define DIFFERENCE_VOLTAGE_UPDATE	20
@@ -138,6 +153,13 @@
 */
 #define FG_BAT_INT
 #define IS_BATTERY_REMOVE_BY_PMIC
+
+/*#define MAX_SMOOTHTIME*/
+/*#define SMOOTH_UISOC2*/
+/*#define LOW_BAT_SPM_TIMER_WAKEUP*/
+
+#define TRK_POINT_EN 0
+#define TRK_POINT_THR 5
 
 #elif defined(CONFIG_ARCH_MT6735M)
 /* ============================================================
@@ -267,6 +289,12 @@
 #define FG_BAT_INT
 #define IS_BATTERY_REMOVE_BY_PMIC
 
+/*#define MAX_SMOOTHTIME*/
+/*#define SMOOTH_UISOC2*/
+/*#define LOW_BAT_SPM_TIMER_WAKEUP*/
+
+#define TRK_POINT_EN 0
+#define TRK_POINT_THR 5
 
 
 #elif defined(CONFIG_ARCH_MT6753)
@@ -397,6 +425,12 @@
 #define FG_BAT_INT
 #define IS_BATTERY_REMOVE_BY_PMIC
 
+/*#define MAX_SMOOTHTIME*/
+/*#define SMOOTH_UISOC2*/
+/*#define LOW_BAT_SPM_TIMER_WAKEUP*/
+
+#define TRK_POINT_EN 0
+#define TRK_POINT_THR 5
 #endif
 
 #endif	/*#ifndef _CUST_BATTERY_METER_H*/

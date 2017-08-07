@@ -94,6 +94,7 @@ typedef enum {
 	BATTERY_METER_CMD_SET_LOW_BAT_INTERRUPT,
 	BATTERY_METER_CMD_GET_LOW_BAT_INTERRUPT_STATUS,
 	BATTERY_METER_CMD_GET_REFRESH_HW_OCV,
+	BATTERY_METER_CMD_GET_IS_HW_OCV_READY,
 
 	BATTERY_METER_CMD_NUMBER
 } BATTERY_METER_CTRL_CMD;
@@ -125,6 +126,6 @@ extern int Enable_FGADC_LOG;
 /* External function */
 /* ============================================================ */
 extern signed int bm_ctrl_cmd(BATTERY_METER_CTRL_CMD cmd, void *data);
-
+extern signed int pmic_is_battery_plugout(void);
 
 #endif				/* #ifndef _BATTERY_METER_HAL_H */
