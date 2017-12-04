@@ -777,6 +777,8 @@ struct ccci_modem {
 	unsigned int sim_type;
 	unsigned int sbp_code;
 	unsigned int sbp_code_default;
+	unsigned int rf_desense;
+	unsigned int is_forced_assert;
 	unsigned char critical_user_active[4];
 	unsigned int md_img_exist[MAX_IMG_NUM];
 	struct platform_device *plat_dev;
@@ -892,7 +894,8 @@ static inline void ccci_chk_rx_seq_num(struct ccci_modem *md, struct ccci_header
 	seq_num = ccci_h->seq_num;
 	assert_bit = ccci_h->assert_bit;
 
-	if (assert_bit && md->seq_nums[IN][channel] != 0 && ((seq_num - md->seq_nums[IN][channel]) & 0x7FFF) != 1) {
+	if (md->is_forced_assert == 0 &&
+		assert_bit && md->seq_nums[IN][channel] != 0 && ((seq_num - md->seq_nums[IN][channel]) & 0x7FFF) != 1) {
 		CCCI_ERR_MSG(md->index, CORE, "channel %d seq number out-of-order %d->%d\n",
 			     channel, seq_num, md->seq_nums[IN][channel]);
 		md->ops->dump_info(md, DUMP_FLAG_CLDMA, NULL, qno);
@@ -1016,7 +1019,7 @@ extern void md_bootup_timeout_func(unsigned long data);
 extern void md_status_poller_func(unsigned long data);
 extern void md_status_timeout_func(unsigned long data);
 extern void ccci_subsys_kernel_init(void);
-
+extern int ccci_update_rf_desense(struct ccci_modem *md, int rf_desense);
 /*
  * if recv_request returns 0 or -CCCI_ERR_DROP_PACKET, then it's port's duty to free the request, and caller should
  * NOT reference the request any more. but if it returns other error, caller should be responsible to free the request.

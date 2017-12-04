@@ -467,6 +467,23 @@ void dump_pmic_wrap_lte_register(struct ccci_modem *md)
 							*((unsigned int *)pmic_wrap_md_adc_sta2));
 
 }
+
+int ccci_notfiy_md_desense(struct ccci_modem *md)
+{
+	int ret = -1;
+
+	if (md->md_state == READY) {
+		ret =  ccci_send_msg_to_md(md, CCCI_SYSTEM_TX, MD_RF_DESENSE, md->rf_desense, 0);
+		CCCI_INF_MSG(md->index, KERN, "Send desense(%d),ret=%d\n", md->rf_desense, ret);
+	} else
+		CCCI_INF_MSG(md->index, KERN, "Not send desense for md state=%d\n", md->md_state);
+	return ret;
+}
+int ccci_update_rf_desense(struct ccci_modem *md, int rf_desense)
+{
+	md->rf_desense = rf_desense;
+	return ccci_notfiy_md_desense(md);
+}
 /*
  * all supported modems should follow these handshake messages as a protocol.
  * but we still can support un-usual modem by providing cutomed kernel_port_ops.
@@ -504,6 +521,8 @@ static void control_msg_handler(struct ccci_port *port, struct ccci_request *req
 		md->boot_stage = MD_BOOT_STAGE_2;
 		md->ops->broadcast_state(md, READY);
 		ccci_send_virtual_md_msg(md, CCCI_MONITOR_CH, CCCI_MD_MSG_BOOT_READY, 0);
+		if (md->rf_desense)
+			ccci_notfiy_md_desense(md);
 	} else if (ccci_h->data[1] == MD_EX) {
 		if (unlikely(ccci_h->reserved != MD_EX_CHK_ID)) {
 			CCCI_ERR_MSG(md->index, KERN, "receive invalid MD_EX\n");

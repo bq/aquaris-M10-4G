@@ -667,7 +667,7 @@ enum {
 	ID_RESET_MD = 14,			/* for SVLTE MD3 reset MD1 */
 	ID_DUMP_MD_REG = 15,
 	ID_DUMP_MD_SLEEP_MODE = 16, /* for dump MD debug info from SMEM when AP sleep */
-
+	ID_MD_RF_DESENSE = 17, /* Notify MD camera on/off will affect MD RF */
 	ID_UPDATE_TX_POWER = 100,   /* for SWTP */
 
 };
@@ -730,7 +730,7 @@ enum {
 	MD_SW_MD2_TX_POWER = 0x10F,
 	MD_SW_MD1_TX_POWER_REQ = 0x110,
 	MD_SW_MD2_TX_POWER_REQ = 0x111,
-
+	MD_RF_DESENSE = 0x113,
 	/*c2k ctrl msg start from 0x200*/
 	C2K_STATUS_IND_MSG = 0x201, /* for usb bypass */
 	C2K_STATUS_QUERY_MSG = 0x202, /* for usb bypass */

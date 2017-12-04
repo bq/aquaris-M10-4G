@@ -1268,112 +1268,24 @@ static struct platform_driver SysramPlatformDriver = {
 static ssize_t SYSRAM_DumpLayoutToProc(struct file *pPage,
 				char __user *pBuffer, size_t Count, loff_t *Off)
 {
-	char *p = (char*)pPage;
-           char** ppStart=NULL;
-	long len = 0;
-	MUINT32 Index = 0;
-           long ret = 0;
-	SYSRAM_MEM_NODE_STRUCT *pCurrNode = NULL;
-	/*  */
-	p += sprintf(p, "\n[SYSRAM_DumpLayoutToProc]\n");
-	p += sprintf(p, "AllocatedTbl = 0x%08lX\n", Sysram.AllocatedTbl);
-	p += sprintf(p, "=========================================\n");
-	for (Index = 0; Index < SYSRAM_MEM_BANK_AMOUNT; Index++) {
-		p += sprintf(p, "\n [Mem Pool %ld] (IndexTbl, UserCount)=(%lX, %ld)\n",
-			     Index,
-			     SysramMemPoolInfo[Index].IndexTbl, SysramMemPoolInfo[Index].UserCount);
-		p += sprintf(p,
-			     "[Locked Time] [Owner   Offset   Size  Index pCurrent pPrevious pNext]  [pid tgid] [Proc Name / Owner Name]\n");
-		pCurrNode = &SysramMemPoolInfo[Index].pMemNode[0];
-		while (NULL != pCurrNode) {
-			SYSRAM_USER_ENUM const User = pCurrNode->User;
-			if (SYSRAM_IsBadOwner(User)) {
-				p += sprintf(p,
-					     "------------ --------"
-					     " %2d\t0x%05lX 0x%05lX  %ld    %p %p\t%p\n",
-					     pCurrNode->User,
-					     pCurrNode->Offset,
-					     pCurrNode->Length,
-					     pCurrNode->Index,
-					     pCurrNode, pCurrNode->pPrev, pCurrNode->pNext);
-			} else {
-				SYSRAM_USER_STRUCT * const pUserInfo = &Sysram.UserInfo[User];
-				p += sprintf(p,
-					     "%5lu.%06lu"
-					     " %2d\t0x%05lX 0x%05lX  %ld    %p %p\t%p"
-					     "  %-4d %-4d \"%s\" / \"%s\"\n",
-					     pUserInfo->TimeS,
-					     pUserInfo->TimeUS,
-					     User,
-					     pCurrNode->Offset,
-					     pCurrNode->Length,
-					     pCurrNode->Index,
-					     pCurrNode,
-					     pCurrNode->pPrev,
-					     pCurrNode->pNext,
-					     pUserInfo->pid,
-					     pUserInfo->tgid,
-					     pUserInfo->ProcName, SysramUserName[User]);
-			}
-			pCurrNode = pCurrNode->pNext;
-		};
-	}
-	/*  */
-	*ppStart = (char*)((unsigned long)pPage + (unsigned long)Off);
-	len = (MUINT32)((unsigned long)p - (unsigned long)pPage);
-	if (len > (long)Off) {
-		len -= (long)Off;
-	} else {
-		len = 0;
-	}
-           ret = len < Count ? len : Count;
-	/*  */
-	return ((ssize_t)(ret));
+	LOG_ERR("SYSRAM_DumpLayoutToProc: Not implement");
+	return 0;
 }
 
 /* ------------------------------------------------------------------------------ */
 static ssize_t SYSRAM_ReadFlag(struct file *pPage,
 				char __user *pBuffer, size_t Count, loff_t *Off)
 {
-	char *p = (char*)pPage;
-           char** ppStart=NULL;
-	long len = 0;
-           long ret = 0;
-	/*  */
-	p += sprintf(p, "\r\n[SYSRAM_ReadFlag]\r\n");
-	p += sprintf(p, "=========================================\r\n");
-	p += sprintf(p, "Sysram.DebugFlag = 0x%08lX\r\n", Sysram.DebugFlag);
-
-	*ppStart = (char*)((unsigned long)pPage + (unsigned long)Off);
-
-	len = (long)((unsigned long)p - (unsigned long)pPage);
-	if (len > (long)Off) {
-		len -= (long)Off;
-	} else {
-		len = 0;
-	}
-	ret = len < Count ? len : Count;
-	/*  */
-	return ((ssize_t)(ret));
+	LOG_ERR("SYSRAM_ReadFlag: Not implement");
+	return 0;
 }
 
 /* ------------------------------------------------------------------------------ */
 static ssize_t SYSRAM_WriteFlag(struct file *pFile,
 			    const char __user *pBuffer, size_t Count, loff_t *p_off)
 {
-	char acBuf[32];
-	MUINT32 u4CopySize = 0;
-	MUINT32 u4SysramDbgFlag = 0;
-	/*  */
-	u4CopySize = (Count < (sizeof(acBuf) - 1)) ? Count : (sizeof(acBuf) - 1);
-	if (copy_from_user(acBuf, pBuffer, u4CopySize)) {
-		return 0;
-	}
-	acBuf[u4CopySize] = '\0';
-	if (3 == sscanf(acBuf, "%lx", &u4SysramDbgFlag)) {
-		Sysram.DebugFlag = u4SysramDbgFlag;
-	}
-	return ((ssize_t)Count);
+	LOG_ERR("SYSRAM_WriteFlag: Not implement");
+	return 0;
 }
 
 /*******************************************************************************
