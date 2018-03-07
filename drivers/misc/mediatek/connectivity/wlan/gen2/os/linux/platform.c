@@ -539,3 +539,16 @@ BOOLEAN kalCfgDataWrite16(IN P_GLUE_INFO_T prGlueInfo, UINT_32 u4Offset, UINT_16
 		return TRUE;
 	}
 }
+
+BOOLEAN kalCfgDataRead(IN P_GLUE_INFO_T prGlueInfo, IN UINT_32 u4Offset,
+			 IN UINT_32 u4Len, OUT PUINT_16 pu2Data)
+{
+	if (pu2Data == NULL)
+		return FALSE;
+	if (nvram_read(WIFI_NVRAM_FILE_NAME,
+	   (char *)pu2Data, u4Len, u4Offset) != u4Len) {
+		return FALSE;
+	} else {
+		return TRUE;
+	}
+}

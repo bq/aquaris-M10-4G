@@ -968,7 +968,7 @@
 
 #define CFG_SUPPORT_PERSIST_NETDEV		0	/* create NETDEV when system bootup */
 
-#define CFG_FORCE_USE_20BW			1
+#define CFG_FORCE_USE_20BW			0
 /*------------------------------------------------------------------------------
  * SLT Option
  *------------------------------------------------------------------------------

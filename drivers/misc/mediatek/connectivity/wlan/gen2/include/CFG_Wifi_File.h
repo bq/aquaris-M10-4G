@@ -174,7 +174,12 @@ typedef struct _MT6620_CFG_PARAM_STRUCT {
 	UINT_8 ucRegChannelListIndex;
 	UINT_8 aucRegSubbandInfo[36];
 
-	UINT_8 aucReserved2[256 - 240];
+	UINT_8 aucReserved2[256 - 246];
+	UINT_16 u2SizeOfNvram;
+	INT_8 bTxPowerLimitEnable2G;
+	INT_8 cTxBackOffMaxPower2G;
+	INT_8 bTxPowerLimitEnable5G;
+	INT_8 cTxBackOffMaxPower5G;
 
 	/* 256 bytes of function data */
 	UINT_16 u2Part2OwnVersion;
@@ -187,7 +192,7 @@ typedef struct _MT6620_CFG_PARAM_STRUCT {
 	UINT_8 uc5GRssiCompensation;
 	UINT_8 fgRssiCompensationValidbit;
 	UINT_8 ucRxAntennanumber;
-	UINT_8 aucTailReserved[256 - 12];
+	UINT_8 aucTailReserved[768 - 12];
 } MT6620_CFG_PARAM_STRUCT, *P_MT6620_CFG_PARAM_STRUCT, WIFI_CFG_PARAM_STRUCT, *P_WIFI_CFG_PARAM_STRUCT;
 
 /*******************************************************************************
@@ -207,6 +212,7 @@ typedef struct _MT6620_CFG_PARAM_STRUCT {
 #endif
 
 #define CFG_FILE_WIFI_REC_SIZE    sizeof(WIFI_CFG_PARAM_STRUCT)
+#define EXTEND_NVRAM_SIZE 1024
 
 /*******************************************************************************
 *                  F U N C T I O N   D E C L A R A T I O N S
@@ -227,7 +233,7 @@ static inline VOID nvramOffsetCheck(VOID)
 {
 	DATA_STRUCT_INSPECTING_ASSERT(OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part2OwnVersion) == 256);
 
-	DATA_STRUCT_INSPECTING_ASSERT(sizeof(WIFI_CFG_PARAM_STRUCT) == 512);
+	DATA_STRUCT_INSPECTING_ASSERT(sizeof(WIFI_CFG_PARAM_STRUCT) == EXTEND_NVRAM_SIZE);
 
 	DATA_STRUCT_INSPECTING_ASSERT((OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucEFUSE) & 0x0001) == 0);
 

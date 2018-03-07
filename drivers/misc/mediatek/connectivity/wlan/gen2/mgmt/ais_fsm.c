@@ -1957,6 +1957,23 @@ VOID aisFsmSteps(IN P_ADAPTER_T prAdapter, ENUM_AIS_STATE_T eNextState)
 					/* increase connection trial count for infrastructure connection */
 					if (prConnSettings->eOPMode == NET_TYPE_INFRA)
 						prAisFsmInfo->ucConnTrialCount++;
+
+					/* Join req timeout means Bss had lost and no need to looking for */
+					if (prAisFsmInfo->rJoinReqTime != 0 &&
+						   CHECK_FOR_TIMEOUT(kalGetTimeTick(),
+								     prAisFsmInfo->rJoinReqTime,
+								     SEC_TO_SYSTIME(AIS_JOIN_TIMEOUT))) {
+						UINT_16 u2StaTusCode = STATUS_CODE_JOIN_TIMEOUT;
+
+						prConnSettings->fgIsDisconnectedByNonRequest = TRUE;
+						eNextState = AIS_STATE_IDLE;
+						fgIsTransition = TRUE;
+						kalIndicateStatusAndComplete(prAdapter->prGlueInfo,
+									WLAN_STATUS_JOIN_FAILURE,
+									(PVOID)&u2StaTusCode, sizeof(u2StaTusCode));
+						break;
+					}
+
 					/* 4 <A> Try to SCAN */
 					if (prAisFsmInfo->fgTryScan) {
 						eNextState = AIS_STATE_LOOKING_FOR;
@@ -2671,6 +2688,8 @@ VOID aisFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHd
 	P_BSS_INFO_T prAisBssInfo;
 	UINT_8 aucP2pSsid[] = CTIA_MAGIC_SSID;
 	OS_SYSTIME rCurrentTime;
+	P_CONNECTION_SETTINGS_T prConnSettings;
+	UINT_16 u2StatusCode = 0;
 
 	DEBUGFUNC("aisFsmRunEventJoinComplete()");
 
@@ -2683,6 +2702,7 @@ VOID aisFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHd
 	prAssocRspSwRfb = prJoinCompMsg->prSwRfb;
 
 	eNextState = prAisFsmInfo->eCurrentState;
+	prConnSettings = &prAdapter->rWifiVar.rConnSettings;
 
 	DBGLOG(AIS, TRACE, "AISOK\n");
 
@@ -2803,8 +2823,16 @@ VOID aisFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHd
 						*/
 						break;
 					}
+
+					DBGLOG(AIS, TRACE,
+					"ucJoinFailureCount=%d %d, Status=%d Reason=%d, eConnectionState=%d\n",
+					       prStaRec->ucJoinFailureCount, prBssDesc->ucJoinFailureCount,
+					       prStaRec->u2StatusCode, prStaRec->u2ReasonCode,
+					       prAisBssInfo->eConnectionState);
+
 					/* ASSERT(prBssDesc); */
 					/* ASSERT(prBssDesc->fgIsConnecting); */
+					u2StatusCode = prStaRec->u2StatusCode;
 					prBssDesc->ucJoinFailureCount++;
 					if (prBssDesc->ucJoinFailureCount >= SCN_BSS_JOIN_FAIL_THRESOLD) {
 						GET_CURRENT_SYSTIME(&prBssDesc->rJoinFailTime);
@@ -2833,7 +2861,9 @@ VOID aisFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHd
 						prAdapter->rWifiVar.rConnSettings.fgIsConnReqIssued = FALSE;
 						prAdapter->rWifiVar.rConnSettings.eReConnectLevel = RECONNECT_LEVEL_MIN;
 						kalIndicateStatusAndComplete(prAdapter->prGlueInfo,
-								     WLAN_STATUS_CONNECT_INDICATION, NULL, 0);
+									     WLAN_STATUS_JOIN_FAILURE,
+									     (PVOID)&u2StatusCode,
+									     sizeof(u2StatusCode));
 
 						eNextState = AIS_STATE_IDLE;
 					} else {
@@ -3248,6 +3278,7 @@ VOID aisPostponedEventOfDisconnTimeout(IN P_ADAPTER_T prAdapter, IN P_AIS_FSM_IN
 {
 	P_BSS_INFO_T prAisBssInfo;
 	P_CONNECTION_SETTINGS_T prConnSettings;
+	P_SCAN_INFO_T prScanInfo;
 	BOOLEAN fgFound = TRUE;
 
 	/* firstly, check if we have started postpone indication.
@@ -3261,6 +3292,12 @@ VOID aisPostponedEventOfDisconnTimeout(IN P_ADAPTER_T prAdapter, IN P_AIS_FSM_IN
 		prAisFsmInfo->eCurrentState == AIS_STATE_REQ_CHANNEL_JOIN) {
 		DBGLOG(AIS, INFO, "CurrentState: %d, don't report disconnect\n",
 				   prAisFsmInfo->eCurrentState);
+		return;
+	}
+
+	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
+	if (prScanInfo->eCurrentState == SCAN_STATE_SCANNING) {
+		DBGLOG(AIS, INFO, "SCANNING, don't report disconnect\n");
 		return;
 	}
 
@@ -4015,7 +4052,7 @@ VOID aisFsmRunEventJoinTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParam)
 			eNextState = AIS_STATE_WAIT_FOR_NEXT_SCAN;
 		} else {
 			/* 3.4 Retreat to AIS_STATE_JOIN_FAILURE to terminate join operation */
-			kalIndicateStatusAndComplete(prAdapter->prGlueInfo, WLAN_STATUS_CONNECT_INDICATION, NULL, 0);
+			kalIndicateStatusAndComplete(prAdapter->prGlueInfo, WLAN_STATUS_JOIN_FAILURE, NULL, 0);
 			eNextState = AIS_STATE_IDLE;
 		}
 		break;
