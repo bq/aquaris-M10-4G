@@ -1,4 +1,17 @@
 /*
+ * Copyright (C) 2016 MediaTek Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+ */
+
+/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/gl_proc.c#1
 */
 
@@ -64,6 +77,9 @@
 
 #include "precomp.h"
 
+#ifdef FW_CFG_SUPPORT
+#include "fwcfg.h"
+#endif
 /* #include "wlan_lib.h" */
 /* #include "debug.h" */
 
@@ -80,6 +96,7 @@
 #define PROC_NEED_TX_DONE						"TxDoneCfg"
 #define PROC_ROOT_NAME			"wlan"
 #define PROC_CMD_DEBUG_NAME		"cmdDebug"
+#define PROC_CFG_NAME			"cfg"
 
 #define PROC_MCR_ACCESS_MAX_USER_INPUT_LEN      20
 #define PROC_RX_STATISTICS_MAX_USER_INPUT_LEN   10
@@ -107,6 +124,9 @@
 /* static UINT_32 u4McrOffset; */
 #if CFG_SUPPORT_THERMO_THROTTLING
 static P_GLUE_INFO_T g_prGlueInfo_proc;
+#endif
+#if FW_CFG_SUPPORT
+static P_GLUE_INFO_T gprGlueInfo;
 #endif
 /*******************************************************************************
 *                                 M A C R O S
@@ -502,8 +522,7 @@ static ssize_t procDbgLevelWrite(struct file *file, const char *buffer, size_t c
 	UINT_8 *temp = &aucProcBuf[0];
 
 	kalMemSet(aucProcBuf, 0, u4CopySize);
-	if (u4CopySize >= count + 1)
-		u4CopySize = count;
+	u4CopySize = (count < u4CopySize) ? count : (u4CopySize - 1);
 
 	if (copy_from_user(aucProcBuf, buffer, u4CopySize)) {
 		kalPrint("error of copy from user\n");
@@ -583,8 +602,7 @@ static ssize_t procTxDoneCfgWrite(struct file *file, const char *buffer, size_t 
 	UINT_8 aucModuleArray[][MODULE_NAME_LENGTH] = {"ARP", "DNS", "TCP", "UDP", "EAPOL", "DHCP", "ICMP"};
 
 	kalMemSet(aucProcBuf, 0, u4CopySize);
-	if (u4CopySize >= count + 1)
-		u4CopySize = count;
+	u4CopySize = (count < u4CopySize) ? count : (u4CopySize - 1);
 
 	if (copy_from_user(aucProcBuf, buffer, u4CopySize)) {
 		kalPrint("error of copy from user\n");
@@ -594,7 +612,7 @@ static ssize_t procTxDoneCfgWrite(struct file *file, const char *buffer, size_t 
 	temp = &aucProcBuf[0];
 	while (temp) {
 		/* pick up a string and teminated after meet : */
-		if (sscanf(temp, "%s %d", aucModule, &u4Enabled) != 2)  {
+		if (sscanf(temp, "%5s %d", aucModule, &u4Enabled) != 2)  {
 			kalPrint("read param fail, aucModule=%s\n", aucModule);
 			break;
 		}
@@ -799,85 +817,54 @@ INT32 wlan_get_link_mode(void)
 	return 0;
 }
 
-static ssize_t procfile_write(struct file *filp, const char __user *buffer, size_t count, loff_t *f_pos)
+static ssize_t procfile_write(struct file *filp, const char __user *buffer,
+			      size_t count, loff_t *f_pos)
 {
 	char buf[256];
 	char *pBuf;
 	ULONG len = count;
-	INT32 x = 0, y = 0, z = 0;
+	unsigned int x = 0;
 	char *pToken = NULL;
 	char *pDelimiter = " \t";
-	INT32 i4Ret = 0;
+	INT32 i4Ret = -1;
 
-	if (copy_from_user(gCoexBuf1.buffer, buffer, count))
-		return -EFAULT;
-	/* gCoexBuf1.availSize = count; */
-
-	/* return gCoexBuf1.availSize; */
-#if 1
 	DBGLOG(INIT, TRACE, "write parameter len = %d\n\r", (INT32) len);
 	if (len >= sizeof(buf)) {
 		DBGLOG(INIT, ERROR, "input handling fail!\n");
-		len = sizeof(buf) - 1;
 		return -1;
 	}
 
 	if (copy_from_user(buf, buffer, len))
 		return -EFAULT;
+
 	buf[len] = '\0';
 	DBGLOG(INIT, TRACE, "write parameter data = %s\n\r", buf);
-
 	pBuf = buf;
 	pToken = strsep(&pBuf, pDelimiter);
-
-	if (pToken) /* x = NULL != pToken ? simple_strtol(pToken, NULL, 16) : 0; */
-		i4Ret = kalkStrtos32(pToken, 16, &x);
-	if (!i4Ret)
-		DBGLOG(INIT, TRACE, "x = 0x%x\n", x);
-
-#if 1
-	pToken = strsep(&pBuf, "\t\n ");
-	if (pToken != NULL) {
-		i4Ret = kalkStrtos32(pToken, 16, &y); /* y = simple_strtol(pToken, NULL, 16); */
+	if (pToken) {
+		i4Ret = kalkStrtou32(pToken, 16, &x);
 		if (!i4Ret)
-			DBGLOG(INIT, TRACE, "y = 0x%08x\n\r", y);
-	} else {
-		y = 3000;
-		/*efuse, register read write default value */
-		if (0x11 == x || 0x12 == x || 0x13 == x)
-			y = 0x80000000;
+			DBGLOG(INIT, TRACE, " x(0x%08x)\n\r", x);
 	}
 
-	pToken = strsep(&pBuf, "\t\n ");
-	if (pToken != NULL) {
-		i4Ret = kalkStrtos32(pToken, 16, &z); /* z = simple_strtol(pToken, NULL, 16); */
-		if (!i4Ret)
-			DBGLOG(INIT, TRACE, "z = 0x%08x\n\r", z);
-	} else {
-		z = 10;
-		/*efuse, register read write default value */
-		if (0x11 == x || 0x12 == x || 0x13 == x)
-			z = 0xffffffff;
-	}
-
-	DBGLOG(INIT, TRACE, " x(0x%08x), y(0x%08x), z(0x%08x)\n\r", x, y, z);
-#endif
-
-	if (((sizeof(wlan_dev_dbg_func) / sizeof(wlan_dev_dbg_func[0])) > x) && NULL != wlan_dev_dbg_func[x])
+	if ((!i4Ret) &&
+	    ((sizeof(wlan_dev_dbg_func) / sizeof(wlan_dev_dbg_func[0])) > x) &&
+	    (wlan_dev_dbg_func[x] != NULL))
 		(*wlan_dev_dbg_func[x]) ();
 	else
-		DBGLOG(INIT, ERROR, "no handler defined for command id(0x%08x)\n\r", x);
-#endif
+		DBGLOG(INIT, ERROR,
+		       "no handler defined for command id(0x%08x), pToken=%p, i4Ret=%d\n\r",
+		       x, pToken, i4Ret);
 
-	/* len = gCoexBuf1.availSize; */
 	return len;
 }
 #endif
-	static const struct file_operations proc_fops = {
-		.owner = THIS_MODULE,
-		.read = procfile_read,
-		.write = procfile_write,
-	};
+
+static const struct file_operations proc_fops = {
+	.owner = THIS_MODULE,
+	.read = procfile_read,
+	.write = procfile_write,
+};
 #endif
 
 INT_32 procInitFs(VOID)
@@ -972,3 +959,126 @@ INT_32 procCreateFsEntry(P_GLUE_INFO_T prGlueInfo)
 	return 0;
 }
 
+#ifdef FW_CFG_SUPPORT
+#define MAX_CFG_OUTPUT_BUF_LENGTH 1024
+static UINT_8 aucCfgBuf[CMD_FORMAT_V1_LENGTH];
+static UINT_8 aucCfgQueryKey[MAX_CMD_NAME_MAX_LENGTH];
+static UINT_8 aucCfgOutputBuf[MAX_CFG_OUTPUT_BUF_LENGTH];
+
+static ssize_t cfgRead(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+	WLAN_STATUS rStatus = WLAN_STATUS_FAILURE;
+	UINT_8 *temp = &aucCfgOutputBuf[0];
+	UINT_32 u4CopySize = 0;
+	struct _CMD_HEADER_T cmdV1Header;
+	struct _CMD_FORMAT_V1_T *pr_cmd_v1 = (struct _CMD_FORMAT_V1_T *) cmdV1Header.buffer;
+
+	/* if *f_pos >  0, we should return 0 to make cat command exit */
+	if (*f_pos > 0 || gprGlueInfo == NULL)
+		return 0;
+
+	kalMemSet(aucCfgOutputBuf, 0, MAX_CFG_OUTPUT_BUF_LENGTH);
+
+	SPRINTF(temp, ("\nprocCfgRead() %s:\n", aucCfgQueryKey));
+
+	/* send to FW */
+	cmdV1Header.cmdVersion = CMD_VER_1;
+	cmdV1Header.cmdType = CMD_TYPE_QUERY;
+	cmdV1Header.itemNum = 1;
+	cmdV1Header.cmdBufferLen = sizeof(struct _CMD_FORMAT_V1_T);
+	kalMemSet(cmdV1Header.buffer, 0, MAX_CMD_BUFFER_LENGTH);
+
+	pr_cmd_v1->itemStringLength = kalStrLen(aucCfgQueryKey);
+	kalMemCopy(pr_cmd_v1->itemString, aucCfgQueryKey, kalStrLen(aucCfgQueryKey));
+
+	rStatus = kalIoctl(gprGlueInfo,
+			wlanoidQueryCfgRead,
+			(PVOID)&cmdV1Header,
+			sizeof(cmdV1Header),
+			TRUE,
+			TRUE,
+			TRUE,
+			FALSE,
+			&u4CopySize);
+	if (rStatus == WLAN_STATUS_FAILURE)
+		DBGLOG(INIT, ERROR, "prCmdV1Header kalIoctl wlanoidQueryCfgRead fail 0x%x\n", rStatus);
+
+	SPRINTF(temp, ("%s\n", cmdV1Header.buffer));
+
+	u4CopySize = kalStrLen(aucCfgOutputBuf);
+	if (u4CopySize > count)
+		u4CopySize = count;
+
+	if (copy_to_user(buf, aucCfgOutputBuf, u4CopySize))
+		DBGLOG(INIT, ERROR, "copy to user failed\n");
+
+	*f_pos += u4CopySize;
+	return (ssize_t)u4CopySize;
+}
+
+static ssize_t cfgWrite(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+{
+	/* echo xxx xxx > /proc/net/wlan/cfg */
+	UINT_8 i = 0;
+	UINT_32 u4CopySize = sizeof(aucCfgBuf);
+	UINT_8 token_num = 1;
+
+	kalMemSet(aucCfgBuf, 0, u4CopySize);
+	u4CopySize = (count < u4CopySize) ? count : (u4CopySize - 1);
+
+	if (copy_from_user(aucCfgBuf, buf, u4CopySize)) {
+		DBGLOG(INIT, ERROR, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	for (; i < u4CopySize; i++) {
+		if (aucCfgBuf[i] == ' ') {
+			token_num++;
+			break;
+		}
+	}
+
+	DBGLOG(INIT, INFO, "procCfgWrite %s\n", aucCfgBuf);
+
+	if (token_num == 1) {
+		kalMemSet(aucCfgQueryKey, 0, sizeof(aucCfgQueryKey));
+		memcpy(aucCfgQueryKey, aucCfgBuf, u4CopySize);
+		if (aucCfgQueryKey[u4CopySize - 1] == 0x0a)
+			aucCfgQueryKey[u4CopySize - 1] = '\0';
+	} else {
+		if (u4CopySize)
+			wlanFwCfgParse(gprGlueInfo->prAdapter, aucCfgBuf);
+	}
+
+	return count;
+}
+
+static const struct file_operations cfg_ops = {
+	.owner = THIS_MODULE,
+	.read = cfgRead,
+	.write = cfgWrite,
+};
+
+INT_32 cfgRemoveProcEntry(void)
+{
+	remove_proc_entry(PROC_CFG_NAME, gprProcRoot);
+	return 0;
+}
+
+INT_32 cfgCreateProcEntry(P_GLUE_INFO_T prGlueInfo)
+{
+	struct proc_dir_entry *prEntry;
+
+	prGlueInfo->pProcRoot = gprProcRoot;
+	gprGlueInfo = prGlueInfo;
+
+	prEntry = proc_create(PROC_CFG_NAME, 0664, gprProcRoot, &cfg_ops);
+	if (prEntry == NULL) {
+		DBGLOG(INIT, ERROR, "Unable to create /proc entry cfg\n\r");
+		return -1;
+	}
+	proc_set_user(prEntry, KUIDT_INIT(PROC_UID_SHELL), KGIDT_INIT(PROC_GID_WIFI));
+
+	return 0;
+}
+#endif

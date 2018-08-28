@@ -62,7 +62,7 @@ static int md_cd_ccif_send(struct ccci_modem *md, int channel_id);
  * we use this as rgpd->data_allow_len, so skb length must be >= this size, check ccci_bm.c's skb pool design.
  * channel 3 is for network in normal mode, but for mdlogger_ctrl in exception mode, so choose the max packet size.
  */
-static int net_rx_queue_buffer_size[CLDMA_RXQ_NUM] = { 0, 0, 0, SKB_1_5K, SKB_1_5K, SKB_1_5K, 0, 0 };
+static int net_rx_queue_buffer_size[CLDMA_RXQ_NUM] = { 0, 0, 0, NET_RX_BUF, NET_RX_BUF, NET_RX_BUF, 0, 0 };
 static int normal_rx_queue_buffer_size[CLDMA_RXQ_NUM] = { SKB_4K, SKB_4K, SKB_4K, SKB_4K, 0, 0, SKB_4K, SKB_16 };
 
 #if 0				/* for debug log dump convenience */
@@ -1146,6 +1146,31 @@ static void cldma_tx_queue_init(struct md_cd_queue *queue)
 #endif
 }
 
+void cldma_enable_irq(struct md_cd_ctrl *md_ctrl)
+{
+	if (atomic_read(&md_ctrl->cldma_irq_enabled) == 0) {
+		enable_irq(md_ctrl->cldma_irq_id);
+		atomic_inc(&md_ctrl->cldma_irq_enabled);
+	}
+}
+
+void cldma_disable_irq(struct md_cd_ctrl *md_ctrl)
+{
+	if (atomic_read(&md_ctrl->cldma_irq_enabled) == 1) {
+		disable_irq(md_ctrl->cldma_irq_id);
+		atomic_dec(&md_ctrl->cldma_irq_enabled);
+	}
+}
+
+void cldma_disable_irq_nosync(struct md_cd_ctrl *md_ctrl)
+{
+	if (atomic_read(&md_ctrl->cldma_irq_enabled) == 1) {
+		/*may be called in isr, so use disable_irq_nosync.
+		   if use disable_irq in isr, system will hang */
+		disable_irq_nosync(md_ctrl->cldma_irq_id);
+		atomic_dec(&md_ctrl->cldma_irq_enabled);
+	}
+}
 static void cldma_irq_work_cb(struct ccci_modem *md)
 {
 	int i, ret;
@@ -1219,8 +1244,12 @@ static void cldma_irq_work_cb(struct ccci_modem *md)
 				/* disable TX_DONE interrupt */
 				cldma_write32(md_ctrl->cldma_ap_pdn_base, CLDMA_AP_L2TIMSR0,
 					      CLDMA_BM_ALL_QUEUE & (1 << i));
-				ret = queue_delayed_work(md_ctrl->txq[i].worker, &md_ctrl->txq[i].cldma_tx_work,
+				if (IS_NET_QUE(md, i))
+					ret = queue_delayed_work(md_ctrl->txq[i].worker, &md_ctrl->txq[i].cldma_tx_work,
 							 msecs_to_jiffies(10));
+				else
+					ret = queue_delayed_work(md_ctrl->txq[i].worker, &md_ctrl->txq[i].cldma_tx_work,
+							 msecs_to_jiffies(0));
 				CCCI_DBG_MSG(md->index, TAG, "qno%d queue_delayed_work=%d\n", i, ret);
 			}
 		}
@@ -1260,7 +1289,7 @@ static void cldma_irq_work_cb(struct ccci_modem *md)
 	}
 	md_cd_lock_cldma_clock_src(0);
 #ifndef ENABLE_CLDMA_AP_SIDE
-	enable_irq(md_ctrl->cldma_irq_id);
+	cldma_enable_irq(md_ctrl);
 #endif
 }
 
@@ -1275,7 +1304,7 @@ static irqreturn_t cldma_isr(int irq, void *data)
 #ifdef ENABLE_CLDMA_AP_SIDE
 	cldma_irq_work_cb(md);
 #else
-	disable_irq_nosync(md_ctrl->cldma_irq_id);
+	cldma_disable_irq_nosync(md_ctrl)
 	queue_work(md_ctrl->cldma_irq_worker, &md_ctrl->cldma_irq_work);
 #endif
 	return IRQ_HANDLED;
@@ -1374,7 +1403,7 @@ static inline void cldma_stop(struct ccci_modem *md)
 #endif
 	spin_unlock_irqrestore(&md_ctrl->cldma_timeout_lock, flags);
 	/* flush work */
-	disable_irq(md_ctrl->cldma_irq_id);
+	cldma_disable_irq(md_ctrl);
 	flush_work(&md_ctrl->cldma_irq_work);
 	for (i = 0; i < QUEUE_LEN(md_ctrl->txq); i++)
 		flush_delayed_work(&md_ctrl->txq[i].cldma_tx_work);
@@ -1511,7 +1540,7 @@ static inline void cldma_start(struct ccci_modem *md)
 	unsigned long flags;
 
 	CCCI_INF_MSG(md->index, TAG, "%s from %ps\n", __func__, __builtin_return_address(0));
-	enable_irq(md_ctrl->cldma_irq_id);
+	cldma_enable_irq(md_ctrl);
 	spin_lock_irqsave(&md_ctrl->cldma_timeout_lock, flags);
 	/* set start address */
 	for (i = 0; i < QUEUE_LEN(md_ctrl->txq); i++) {
@@ -1807,6 +1836,13 @@ static void md_cd_wdt_work(struct work_struct *work)
 			CCCI_INF_MSG(md->index, TAG, "mdlogger closed,reset MD after WDT %d\n", ret);
 			/* 4. send message, only reset MD on non-eng load */
 			ccci_send_virtual_md_msg(md, CCCI_MONITOR_CH, CCCI_MD_MSG_RESET, 0);
+#ifdef CONFIG_MTK_ECCCI_C2K
+			exec_ccci_kern_func_by_md_id(MD_SYS3, ID_RESET_MD, NULL, 0);
+#else
+#ifdef CONFIG_MTK_SVLTE_SUPPORT
+			c2k_reset_modem();
+#endif
+#endif
 		} else {
 			md_cd_dump_debug_register(md);
 			ccci_md_exception_notify(md, MD_WDT);
@@ -1819,6 +1855,11 @@ static irqreturn_t md_cd_wdt_isr(int irq, void *data)
 {
 	struct ccci_modem *md = (struct ccci_modem *)data;
 	struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
+
+	if (md->boot_stage == MD_BOOT_STAGE_0 && md->md_state != EXCEPTION && md->md_state != BOOT_FAIL) {
+		CCCI_ERR_MSG(md->index, TAG, "Ignore MD WDT IRQ which cann't be handled.\n");
+		return IRQ_HANDLED;
+	}
 
 	CCCI_ERR_MSG(md->index, TAG, "MD WDT IRQ\n");
 	ccif_disable_irq(md);
@@ -1884,11 +1925,10 @@ static void md_cd_ccif_delayed_work(struct ccci_modem *md)
 	struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
 	int i;
 
-#if defined (CONFIG_MTK_AEE_FEATURE)
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	aee_kernel_dal_show("Modem exception dump start, please wait up to 5 minutes.\n");
 #endif
-
- 	/* stop CLDMA, we don't want to get CLDMA IRQ when MD is reseting CLDMA after it got cleaq_ack */
+	/* stop CLDMA, we don't want to get CLDMA IRQ when MD is resetting CLDMA after it got cleaq_ack */
 	cldma_stop(md);
 	for (i = 0; i < QUEUE_LEN(md_ctrl->txq); i++)
 		flush_delayed_work(&md_ctrl->txq[i].cldma_tx_work);
@@ -1906,6 +1946,7 @@ static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
 	volatile unsigned int SO_CFG;
 
 	CCCI_ERR_MSG(md->index, TAG, "MD exception HIF %d\n", stage);
+	wake_lock_timeout(&md_ctrl->trm_wake_lock, 50 * HZ);
 	/* in exception mode, MD won't sleep, so we do not need to request MD resource first */
 	switch (stage) {
 	case HIF_EX_INIT:
@@ -1916,7 +1957,6 @@ static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
 			CCCI_ERR_MSG(md->index, KERN, "MD found wrong sequence number\n");
 			md->ops->dump_info(md, DUMP_FLAG_CLDMA, NULL, -1);
 		}
-		wake_lock_timeout(&md_ctrl->trm_wake_lock, 10 * HZ);
 		ccci_md_exception_notify(md, EX_INIT);
 		/* disable CLDMA except un-stop queues */
 		cldma_stop_for_ee(md);
@@ -1954,15 +1994,22 @@ static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
 	};
 }
 
-static void polling_ready(struct md_cd_ctrl *md_ctrl, int step)
+static void polling_ready(struct ccci_modem *md, int step)
 {
-	int cnt = 100;
-	while (cnt--)
-	{
-		if (md_ctrl->channel_id & (1 << step))
-			break;
-		msleep(20);
+	int cnt = 500; /*MD timeout is 10s*/
+	int time_once = 20;
+	struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
+
+	while (cnt > 0)	{
+		md_ctrl->channel_id = cldma_read32(md_ctrl->ap_ccif_base, APCCIF_RCHNUM);
+		if (md_ctrl->channel_id & (1 << step)) {
+			cldma_write32(md_ctrl->ap_ccif_base, APCCIF_ACK, (1 << step));
+			return;
+		}
+		msleep(time_once);
+		cnt--;
 	}
+	CCCI_ERR_MSG(md->index, TAG, "poll EE HS timeout, RCHNUM %d\n", md_ctrl->channel_id);
 }
 static void md_cd_ccif_work(struct work_struct *work)
 {
@@ -1970,25 +2017,29 @@ static void md_cd_ccif_work(struct work_struct *work)
 	struct ccci_modem *md = md_ctrl->modem;
 
 	mutex_lock(&md_ctrl->ccif_wdt_mutex);
-	if (!wdt_executed)
-	{
-		polling_ready(md_ctrl, D2H_EXCEPTION_INIT);
+	if (!wdt_executed) {
+		wake_lock_timeout(&md_ctrl->trm_wake_lock, 20 * HZ);/* Avoid sleep at polling */
+		/* polling_ready(md, D2H_EXCEPTION_INIT); */
 		md_cd_exception(md, HIF_EX_INIT);
-		polling_ready(md_ctrl, D2H_EXCEPTION_INIT_DONE);
+
+		wake_lock_timeout(&md_ctrl->trm_wake_lock, 20 * HZ);/* Avoid sleep at polling */
+		polling_ready(md, D2H_EXCEPTION_INIT_DONE);
 		md_cd_exception(md, HIF_EX_INIT_DONE);
 
-		polling_ready(md_ctrl, D2H_EXCEPTION_CLEARQ_DONE);
+		wake_lock_timeout(&md_ctrl->trm_wake_lock, 20 * HZ);/* Avoid sleep at polling */
+		polling_ready(md, D2H_EXCEPTION_CLEARQ_DONE);
 		md_cd_exception(md, HIF_EX_CLEARQ_DONE);
 
-		polling_ready(md_ctrl, D2H_EXCEPTION_ALLQ_RESET);
+		wake_lock_timeout(&md_ctrl->trm_wake_lock, 20 * HZ);/* Avoid sleep at polling */
+		polling_ready(md, D2H_EXCEPTION_ALLQ_RESET);
 		md_cd_exception(md, HIF_EX_ALLQ_RESET);
 
-	    if(md_ctrl->channel_id & (1<<AP_MD_PEER_WAKEUP))
-	        wake_lock_timeout(&md_ctrl->peer_wake_lock, HZ);
-	    if(md_ctrl->channel_id & (1<<AP_MD_SEQ_ERROR)) {
-	        CCCI_ERR_MSG(md->index, TAG, "MD check seq fail\n");
-	        md->ops->dump_info(md, DUMP_FLAG_CCIF, NULL, 0);
-	    }
+		if (md_ctrl->channel_id & (1<<AP_MD_PEER_WAKEUP))
+			wake_lock_timeout(&md_ctrl->peer_wake_lock, HZ);
+		if (md_ctrl->channel_id & (1<<AP_MD_SEQ_ERROR)) {
+			CCCI_ERR_MSG(md->index, TAG, "MD check seq fail\n");
+			md->ops->dump_info(md, DUMP_FLAG_CCIF, NULL, 0);
+		}
 	}
 	mutex_unlock(&md_ctrl->ccif_wdt_mutex);
 }
@@ -2033,7 +2084,7 @@ static inline int cldma_sw_init(struct ccci_modem *md)
 			     ret);
 		return ret;
 	}
-	disable_irq(md_ctrl->hw_info->cldma_irq_id);
+	cldma_disable_irq(md_ctrl);
 #ifndef FEATURE_FPGA_PORTING
 	ret =
 	    request_irq(md_ctrl->hw_info->md_wdt_irq_id, md_cd_wdt_isr, md_ctrl->hw_info->md_wdt_irq_flags, "MD_WDT",
@@ -2042,8 +2093,7 @@ static inline int cldma_sw_init(struct ccci_modem *md)
 		CCCI_ERR_MSG(md->index, TAG, "request MD_WDT IRQ(%d) error %d\n", md_ctrl->hw_info->md_wdt_irq_id, ret);
 		return ret;
 	}
-	atomic_inc(&md_ctrl->wdt_enabled);
-		/* IRQ is enabled after requested, so call enable_irq after request_irq will get a unbalance warning */
+	/* IRQ is enabled after requested, so call enable_irq after request_irq will get a unbalance warning */
 	ret =
 	    request_irq(md_ctrl->hw_info->ap_ccif_irq_id, md_cd_ccif_isr, md_ctrl->hw_info->ap_ccif_irq_flags,
 			"CCIF0_AP", md);
@@ -2052,7 +2102,6 @@ static inline int cldma_sw_init(struct ccci_modem *md)
 			     ret);
 		return ret;
 	}
-	atomic_inc(&md_ctrl->ccif_irq_enabled);
 #endif
 	return 0;
 }
@@ -2282,6 +2331,7 @@ static int md_cd_start(struct ccci_modem *md)
 	md->ops->broadcast_state(md, BOOTING);
 	md->boot_stage = MD_BOOT_STAGE_0;
 	md->ex_stage = EX_NONE;
+	md->is_forced_assert = 0;
 	cldma_start(md);
 
  out:
@@ -2410,6 +2460,8 @@ static int md_cd_stop(struct ccci_modem *md, unsigned int timeout)
 	struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
 	u32 pending;
 	int en_power_check;
+	int i;
+	unsigned int rx_ch_bitmap;
 
 	CCCI_INF_MSG(md->index, TAG, "CLDMA modem is power off, timeout=%d\n", timeout);
 	md->sim_type = 0xEEEEEEEE;	/* reset sim_type(MCC/MNC) to 0xEEEEEEEE */
@@ -2483,7 +2535,17 @@ static int md_cd_stop(struct ccci_modem *md, unsigned int timeout)
 #endif
 
 	/* ACK CCIF for MD. while entering flight mode, we may send something after MD slept */
-	cldma_write32(md_ctrl->md_ccif_base, APCCIF_ACK, cldma_read32(md_ctrl->md_ccif_base, APCCIF_RCHNUM));
+	rx_ch_bitmap = cldma_read32(md_ctrl->md_ccif_base, APCCIF_RCHNUM);
+	if (rx_ch_bitmap) {
+		CCCI_INF_MSG(md->index, TAG, "CCIF rx bitmap: 0x%x\n", rx_ch_bitmap);
+		for (i = 0; i < 16; i++) {
+			/* Ack one by one */
+			if (rx_ch_bitmap & (1<<i))
+				cldma_write32(md_ctrl->md_ccif_base, APCCIF_ACK, (1<<i));
+		}
+		rx_ch_bitmap = cldma_read32(md_ctrl->md_ccif_base, APCCIF_RCHNUM);
+		CCCI_INF_MSG(md->index, TAG, "CCIF rx bitmap: 0x%x(after ack)\n", rx_ch_bitmap);
+	}
 
 	md_cd_check_emi_state(md, 0);	/* Check EMI after */
 	return 0;
@@ -3214,6 +3276,10 @@ static int md_cd_force_assert(struct ccci_modem *md, MD_COMM_TYPE type)
 	struct ccci_request *req = NULL;
 	struct ccci_header *ccci_h;
 
+	if (md->is_forced_assert == 1) {
+		CCCI_ERR_MSG(md->index, TAG, "MD has been forced assert, no need again using %d\n", type);
+		return 0;
+	}
 	CCCI_INF_MSG(md->index, TAG, "force assert MD using %d\n", type);
 	switch (type) {
 	case CCCI_MESSAGE:
@@ -3236,6 +3302,7 @@ static int md_cd_force_assert(struct ccci_modem *md, MD_COMM_TYPE type)
 		md_cd_ccif_send(md, AP_MD_SEQ_ERROR);
 		break;
 	};
+	md->is_forced_assert = 1;
 	return 0;
 }
 
@@ -3452,8 +3519,8 @@ static ssize_t md_cd_control_store(struct ccci_modem *md, const char *buf, size_
 	}
 	if (strncmp(buf, "ccci_trm", count - 1) == 0) {
 		CCCI_INF_MSG(md->index, TAG, "TRM triggered\n");
-		md->ops->reset(md);
-		ccci_send_virtual_md_msg(md, CCCI_MONITOR_CH, CCCI_MD_MSG_RESET, 0);
+		if (md->ops->reset(md) == 0)
+			ccci_send_virtual_md_msg(md, CCCI_MONITOR_CH, CCCI_MD_MSG_RESET, 0);
 	}
 	size = strlen("md_type=");
 	if (strncmp(buf, "md_type=", size) == 0) {
@@ -3716,8 +3783,10 @@ static int ccci_modem_probe(struct platform_device *plat_dev)
 	INIT_WORK(&md_ctrl->cldma_irq_work, cldma_irq_work);
 	md_ctrl->channel_id = 0;
 	atomic_set(&md_ctrl->reset_on_going, 0);
-	atomic_set(&md_ctrl->wdt_enabled, 0);
-	atomic_set(&md_ctrl->ccif_irq_enabled, 0);
+	/* IRQ is default enabled after request_irq, so set init 1 */
+	atomic_set(&md_ctrl->wdt_enabled, 1);
+	atomic_set(&md_ctrl->cldma_irq_enabled, 1);
+	atomic_set(&md_ctrl->ccif_irq_enabled, 1);
 	INIT_WORK(&md_ctrl->wdt_work, md_cd_wdt_work);
 #if TRAFFIC_MONITOR_INTERVAL
 	init_timer(&md_ctrl->traffic_monitor);

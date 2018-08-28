@@ -939,6 +939,7 @@ static int md_ccif_op_start(struct ccci_modem *md)
 	md->ops->broadcast_state(md, BOOTING);
 	md_ccif_let_md_go(md);
 	enable_irq(md_ctrl->md_wdt_irq_id);
+	md->is_forced_assert = 0;
  out:
 	CCCI_INF_MSG(md->index, TAG, "ccif modem started %d\n", ret);
 	/*used for throttling feature - start */
@@ -1289,6 +1290,10 @@ static int md_ccif_op_force_assert(struct ccci_modem *md, MD_COMM_TYPE type)
 	struct ccci_request *req = NULL;
 	struct ccci_header *ccci_h;
 
+	if (md->is_forced_assert == 1) {
+		CCCI_ERR_MSG(md->index, TAG, "MD has been forced assert, no need again using %d\n", type);
+		return 0;
+	}
 	CCCI_INF_MSG(md->index, TAG, "force assert MD using %d\n", type);
 	switch (type) {
 	case CCCI_MESSAGE:
@@ -1314,6 +1319,7 @@ static int md_ccif_op_force_assert(struct ccci_modem *md, MD_COMM_TYPE type)
 		md_ccif_send(md, AP_MD_SEQ_ERROR);
 		break;
 	};
+	md->is_forced_assert = 1;
 	return 0;
 
 }

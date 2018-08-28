@@ -330,6 +330,7 @@ int md_cd_let_md_go(struct ccci_modem *md)
 int md_cd_power_off(struct ccci_modem *md, unsigned int timeout)
 {
 	int ret = 0;
+	int count = 50;
 	unsigned int reg_value;
 #if defined(FEATURE_RF_CLK_BUF)
 	struct pinctrl_state *RFIC0_04_mode;
@@ -342,7 +343,15 @@ int md_cd_power_off(struct ccci_modem *md, unsigned int timeout)
 	/* notify NFC */
 	inform_nfc_vsim_change(md->index, 0, 0);
 #endif
-
+	while (spm_is_md1_sleep() == 0) {
+		msleep(20);
+		count--;
+		if (count == 0) {
+			CCCI_INF_MSG(md->index, TAG, "%s:poll md sleep timeout: %d",
+				__func__, spm_is_md1_sleep());
+			break;
+		}
+	}
 #ifdef FEATURE_RF_CLK_BUF
 	mutex_lock(&clk_buf_ctrl_lock);
 #endif

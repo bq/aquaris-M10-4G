@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 MediaTek Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -809,7 +822,7 @@ static int SYSRAM_mmap(
 	struct file *pFile,
 	struct vm_area_struct *pVma)
 {
-	long length = 0;
+	unsigned long length = 0;
 	MUINT32 pfn = 0x0;
 	/* LOG_MSG(""); */
 	pVma->vm_page_prot = pgprot_noncached(pVma->vm_page_prot);

@@ -2109,12 +2109,12 @@ long WMT_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case WMT_IOCTL_SET_PATCH_NUM:{
-			pAtchNum = arg;
-			if (pAtchNum == 0 || pAtchNum > MAX_PATCH_NUM) {
-				WMT_ERR_FUNC("patch num(%d) == 0 or > %d!\n", pAtchNum, MAX_PATCH_NUM);
+			if (arg == 0 || arg > MAX_PATCH_NUM) {
+				WMT_ERR_FUNC("patch num(%d) == 0 or > %d!\n", arg, MAX_PATCH_NUM);
 				iRet = -1;
 				break;
 			}
+			pAtchNum = arg;
 
 			pPatchInfo = kcalloc(pAtchNum, sizeof(WMT_PATCH_INFO), GFP_ATOMIC);
 			if (!pPatchInfo) {
@@ -2142,6 +2142,13 @@ long WMT_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (copy_from_user(&wMtPatchInfo, (void *)arg, sizeof(WMT_PATCH_INFO))) {
 				WMT_ERR_FUNC("copy_from_user failed at %d\n", __LINE__);
 				iRet = -EFAULT;
+				break;
+			}
+
+			if (wMtPatchInfo.dowloadSeq > pAtchNum || wMtPatchInfo.dowloadSeq == 0) {
+				WMT_ERR_FUNC("dowloadSeq num(%u) > %u or == 0!\n", wMtPatchInfo.dowloadSeq, pAtchNum);
+				iRet = -EFAULT;
+				counter = 0;
 				break;
 			}
 

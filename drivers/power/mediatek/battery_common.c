@@ -4401,6 +4401,7 @@ static void battery_timer_resume(void)
 	kal_bool is_pcm_timer_trigger = KAL_FALSE;
 	struct timespec bat_time_after_sleep;
 	ktime_t ktime, hvtime;
+	kal_bool ext_gauge_IC_update_SOC = KAL_FALSE;
 
 #ifdef CONFIG_MTK_POWER_EXT_DETECT
 	if (KAL_TRUE == bat_is_ext_power())
@@ -4421,11 +4422,35 @@ static void battery_timer_resume(void)
 		battery_log(BAT_LOG_CRTI, "battery resume NOT by pcm timer!!\n");
 	}
 
-	if (g_call_state == CALL_ACTIVE &&
-		(bat_time_after_sleep.tv_sec - g_bat_time_before_sleep.tv_sec >= batt_cust_data.talking_sync_time)) {
-		/* phone call last than x min */
-		BMT_status.UI_SOC = battery_meter_get_battery_percentage();
-		battery_log(BAT_LOG_CRTI, "Sync UI SOC to SOC immediately\n");
+//modified by xmwwy, update UI_SOC when system has gauge IC
+#if defined(SOC_BY_EXT_HW_FG)
+#if defined(CONFIG_MALATA_HARDWARE_VERSION)
+	if (MATCH_BQ27520_HARDWARE_VERSION == hardware_version)
+	{
+		ext_gauge_IC_update_SOC = KAL_TRUE;
+	}else{
+		ext_gauge_IC_update_SOC = KAL_FALSE;
+		battery_log(BAT_LOG_CRTI, "---flag ext_gauge_IC_update_SOC is false!---\n");
+	}
+#else
+	ext_gauge_IC_update_SOC = KAL_FALSE;
+#endif
+#else
+	ext_gauge_IC_update_SOC = KAL_FALSE;
+#endif
+	battery_log(BAT_LOG_CRTI, "flag ext_gauge_IC_update_SOC=%d\n",(int)ext_gauge_IC_update_SOC);
+	if(ext_gauge_IC_update_SOC){
+		if(bat_time_after_sleep.tv_sec - g_bat_time_before_sleep.tv_sec >= 20) {
+			BMT_status.UI_SOC = battery_meter_get_battery_percentage();
+			battery_log(BAT_LOG_CRTI, "ext_gauge_IC_update_SOC, Sync UI SOC to SOC immediately\n");
+		}
+	}else{
+		if (g_call_state == CALL_ACTIVE &&
+			(bat_time_after_sleep.tv_sec - g_bat_time_before_sleep.tv_sec >= batt_cust_data.talking_sync_time)) {
+			/* phone call last than x min */
+			BMT_status.UI_SOC = battery_meter_get_battery_percentage();
+			battery_log(BAT_LOG_CRTI, "Sync UI SOC to SOC immediately\n");
+		}
 	}
 
 	mutex_lock(&bat_mutex);

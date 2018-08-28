@@ -166,6 +166,7 @@ struct md_cd_ctrl {
 	struct mutex ccif_wdt_mutex;
 	atomic_t reset_on_going;
 	atomic_t wdt_enabled;
+	atomic_t cldma_irq_enabled;
 	atomic_t ccif_irq_enabled;
 	char trm_wakelock_name[32];
 	struct wake_lock trm_wake_lock;
@@ -331,7 +332,7 @@ extern unsigned long ccci_modem_boot_count[];
 extern int gf_port_list_reg[GF_PORT_LIST_MAX];
 extern int gf_port_list_unreg[GF_PORT_LIST_MAX];
 extern int ccci_ipc_set_garbage_filter(struct ccci_modem *md, int reg);
-
+extern bool spm_is_md1_sleep(void);
 #ifdef TEST_MESSAGE_FOR_BRINGUP
 extern int ccci_sysmsg_echo_test(int, int);
 extern int ccci_sysmsg_echo_test_l1core(int, int);

@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2015 MediaTek Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 #define DEBUG 1
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -192,6 +205,9 @@ void tscpu_met_unlock(unsigned long *flags)
 EXPORT_SYMBOL(tscpu_met_unlock);
 
 #endif
+static int g_is_temp_valid;
+static void temp_valid_lock(unsigned long *flags);
+static void temp_valid_unlock(unsigned long *flags);
 /*=============================================================
  *Weak functions
  *=============================================================*/
@@ -287,6 +303,9 @@ static void tscpu_fast_initial_sw_workaround(void)
 
 	mt_ptp_unlock(&flags);
 
+	temp_valid_lock(&flags);
+	g_is_temp_valid = 0;
+	temp_valid_unlock(&flags);
 }
 
 void tscpu_thermal_tempADCPNP(int adc, int order)
@@ -787,7 +806,7 @@ static ssize_t tscpu_write_GPIO_out(struct file *file, const char __user *buffer
 
 	desc[len] = '\0';
 
-	if (sscanf(desc, "%s %d %s %d ", TEMP, &valTEMP, ENABLE, &valENABLE) == 4) {
+	if (sscanf(desc, "%9s %d %9s %d ", TEMP, &valTEMP, ENABLE, &valENABLE) == 4) {
 		/* tscpu_printk("XXXXXXXXX\n"); */
 
 		if (!strcmp(TEMP, "TEMP")) {
@@ -1075,7 +1094,7 @@ static ssize_t tscpu_write(struct file *file, const char __user *buffer, size_t 
 
 	if (sscanf
 	    (ptr_mtktscpu_data->desc,
-	     "%d %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d %d %s %d",
+	     "%d %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d %d %19s %d",
 	     &num_trip,
 	     &ptr_mtktscpu_data->trip[0], &ptr_mtktscpu_data->t_type[0], ptr_mtktscpu_data->bind0,
 	     &ptr_mtktscpu_data->trip[1], &ptr_mtktscpu_data->t_type[1], ptr_mtktscpu_data->bind1,
@@ -1955,6 +1974,49 @@ static void tscpu_thermal_release(void)
 }
 #endif
 #endif
+
+static DEFINE_SPINLOCK(temp_valid_spinlock);
+static void temp_valid_lock(unsigned long *flags)
+{
+	spin_lock_irqsave(&temp_valid_spinlock, *flags);
+}
+
+static void temp_valid_unlock(unsigned long *flags)
+{
+	spin_unlock_irqrestore(&temp_valid_spinlock, *flags);
+}
+
+static void check_all_temp_valid(void)
+{
+	int i, j, raw;
+
+	for (i = 0; i < ARRAY_SIZE(tscpu_g_bank); i++) {
+		for (j = 0; j < tscpu_g_bank[i].ts_number; j++) {
+			raw = tscpu_bank_ts_r[i][tscpu_g_bank[i].ts[j].type];
+
+			if (raw == THERMAL_INIT_VALUE)
+				return;	/* The temperature is not valid. */
+		}
+	}
+
+	g_is_temp_valid = 1;
+}
+
+int tscpu_is_temp_valid(void)
+{
+	int is_valid = 0;
+	unsigned long flags;
+
+	temp_valid_lock(&flags);
+	if (g_is_temp_valid == 0)
+		check_all_temp_valid();
+
+	is_valid = g_is_temp_valid;
+	temp_valid_unlock(&flags);
+
+	return is_valid;
+}
+
 static void read_all_bank_temperature(void)
 {
 	int i = 0;
@@ -1971,6 +2033,7 @@ static void read_all_bank_temperature(void)
 
 
 	mt_ptp_unlock(&flags);
+	tscpu_is_temp_valid();
 }
 
 void tscpu_update_tempinfo(void)

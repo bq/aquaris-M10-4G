@@ -1253,6 +1253,10 @@ void p2pSetMulticastListWorkQueueWrapper(P_GLUE_INFO_T prGlueInfo);
 
 #endif
 
+#ifdef FW_CFG_SUPPORT
+INT_32 cfgCreateProcEntry(P_GLUE_INFO_T prGlueInfo);
+INT_32 cfgRemoveProcEntry(void);
+#endif
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************
